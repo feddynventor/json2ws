@@ -10,18 +10,28 @@ process.argv.slice(2).forEach((arg,i)=>{
 })
 //##########
 const ws = require("nodejs-websocket")
-var server = ws.createServer().listen(parsedArgs.ws?parsedArgs.ws:SOCKET_PORT)
+var server = ws.createServer( function () {
+	if (!lastObject) return;
+	server.connections.forEach(async function (conn) {
+		conn.sendText(JSON.stringify({topic:"connect",payload:lastObject}))
+	})
+}).listen(parsedArgs.ws?parsedArgs.ws:SOCKET_PORT)
 
 const express = require('express');
 const app = express();
 app.use(express.json());
 app.all("*", (req,res, next) => {
+	if(Object.keys(parsedArgs).includes("free")){
+		next();
+		return;
+	}
 	if(req.headers.authorization==PASSWORD_HEADER)
 		next();
 	else
 		res.sendStatus(403);
 })
 var lastSent = new Date();
+var lastObject = null;
 app.post('/*', function (req, res) {
 	if (new Date()-lastSent<DEBOUNCE_TIME){
 		res.sendStatus(401);
@@ -33,6 +43,8 @@ app.post('/*', function (req, res) {
 		}))
 	})
 	lastSent = new Date();
+	if(Object.keys(parsedArgs).includes("preserve"))
+	lastObject = req.body;
 	res.sendStatus(200);
 })
 app.listen(parsedArgs.http?parsedArgs.http:HTTP_PORT)
