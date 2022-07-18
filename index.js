@@ -12,9 +12,10 @@ process.argv.slice(2).forEach((arg,i)=>{
 const ws = require("nodejs-websocket")
 var server = ws.createServer( function () {
 	if (!lastObject) return;
-	server.connections.forEach(async function (conn) {
-		conn.sendText(JSON.stringify({topic:"connect",payload:lastObject}))
-	})
+	if (Math.floor(new Date()/1000)-lastObject.creation<lastObject.ttl){
+		server.connections.forEach(async function (conn) {
+			conn.sendText(JSON.stringify(lastObject))
+		})}
 }).listen(parsedArgs.ws?parsedArgs.ws:SOCKET_PORT)
 
 const express = require('express');
@@ -37,14 +38,15 @@ app.post('/*', function (req, res) {
 		res.sendStatus(401);
 		return;
 	}
+	lastObject = {
+		'topic':req.path,'payload':req.body,
+		'ttl':req.body.ttl, 'creation':Math.floor(new Date()/1000)
+	};
 	server.connections.forEach(async function (conn) {
-		conn.sendText(JSON.stringify({
-			'topic':req.path,'payload':req.body
-		}))
+		conn.sendText(JSON.stringify(lastObject))
 	})
 	lastSent = new Date();
-	if(Object.keys(parsedArgs).includes("preserve"))
-	lastObject = req.body;
+	if(!Object.keys(parsedArgs).includes("preserve")) lastObject=null
 	res.sendStatus(200);
 })
 app.listen(parsedArgs.http?parsedArgs.http:HTTP_PORT)
