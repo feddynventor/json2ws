@@ -21,7 +21,7 @@ var server = ws.createServer( function () {
 const express = require('express');
 const app = express();
 app.use(express.json());
-app.all("*", (req,res, next) => {
+app.post("*", (req,res, next) => {
 	if(Object.keys(parsedArgs).includes("free")){
 		next();
 		return;
@@ -49,4 +49,10 @@ app.post('/*', function (req, res) {
 	if(!Object.keys(parsedArgs).includes("preserve")) lastObject=null
 	res.sendStatus(200);
 })
+app.get('/:topic', function (req, res) {
+	if (!lastObject) {res.sendStatus(503); return;}
+	if (lastObject.topic!==('/'+req.params.topic)) {res.sendStatus(403); return;}
+	res.sendStatus(200).send(lastObject)
+});
+
 app.listen(parsedArgs.http?parsedArgs.http:HTTP_PORT)
